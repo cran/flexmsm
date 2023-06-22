@@ -1,0 +1,52 @@
+#' @docType package
+#'
+#' @name flexmsm-package
+#' @aliases flexmsm
+#'
+#' @title flexmsm: Flexible Multi-State Modelling
+#'
+#' @description
+#' Provides a function for fitting any type of multistate survival model, with flexibly defined transition intensities and any type of observation scheme.
+#' The package also provides a host of tools for straightforward interpretation and visualisation of the fitted model.
+#'
+#' The main fitting function is \code{\link{fmsm}}, which fits the multistate survival model, providing parameter and
+#' as key inference quantities (p-values, estimated degrees of freedom, ...), as well as the elements needed to obtain
+#' predicted transition intensities and probabilities, along with their confidence intervals.
+#'
+#' The main auxiliary functions are \code{\link{Q.pred}} and \code{\link{P.pred}}.
+#'
+#'
+#' @details
+#' Provides functions for fitting and interpreting the output of general flexible multistate survival models.
+#' The process is defined by means of a list of model specifications for the transition intensities, each of which follow syntax
+#' similar to that used for GAMs in \code{mgcv}.
+#'
+#' The estimation approach is based on a carefully structured, stable penalised likelihood approach, with the smoothers
+#' (representing several types of covariate effects) set up using penalised regression splines.
+#' The numerical routine carries out function minimization using a trust region algorithm in combination with an adaptation of an automatic
+#' multiple smoothing parameter estimation procedure for Generalised Additive Models (see \code{mgcv} for more details on this last point). The smooths
+#' supported by this package are those available in \code{mgcv}.
+#'
+#' Confidence intervals for smooth components and nonlinear functions of the model parameters are derived using a Bayesian approach.
+#' P-values for testing individual smooth terms for equality to the zero function are also provided and based on the approach
+#' implemented in \code{mgcv}. The usual plotting and summary functions are also available.
+#'
+#' Plots of the estimated transition intensities and transition probabilities can be obtained along with their respective confidence intervals.
+#' This includes 3D plots when two-dimensional splines are included in the model specification of one or more transition intensities.
+#'
+#' @author
+#' Alessia Eletti (University College London, Department of Statistical Science),
+#' Giampiero Marra (University College London, Department of Statistical Science)
+#' and Rosalba Radice (Cass Business School, City, University of London).
+#'
+#' Maintainer: Alessia Eletti \email{alessia.eletti.19@@ucl.ac.uk}
+#'
+#' @references
+#' Eletti, A., Marra, G., Radice, R., (submitted), A General Estimation Framework for Multi-State Markov Processes with Flexible Specification of the Transition Intensities.
+#'
+#' @seealso \code{\link{fmsm}}
+#'
+#' @keywords multistate package smooth intermittently observed penalised regression spline flexible transition intensities
+#'
+#'
+NULL
