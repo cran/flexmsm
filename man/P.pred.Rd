@@ -29,23 +29,15 @@ P.pred(object, newdata, get.CI = TRUE,
 \item{...}{Other graphical arguments.}
 }
 \value{
-Estimated transition probabilities (and confidence intervals). \tabular{ll}{
-\code{P.pred} \tab Predicted transition probability matrix corresponding to the time horizon specified in \code{newdata}. This is a \code{nstates x nstates} matrix. \cr
-\tab \cr
-\code{P.CI.lower} \tab Matrix containing the lower bounds of the confidence intervals for the predicted transition probability matrix.  \cr
-\tab \cr
-\code{P.CI.upper} \tab Matrix containing the upper bounds of the confidence intervals for the predicted transition probability matrix.  \cr
-\tab \cr
-\code{P.hist} \tab List of predicted transition probability matrices computed at each time point specified in \code{newdata}. This is a \code{nstates x nstates x n.pred} array, where \code{n.pred} is the number of rows in \code{newdata}. \cr
-\tab \cr
-\code{P.CI.lower.hist} \tab List of matrices containing the lower bounds of the confidence intervals for each predicted transition probability matrix in \code{P.hist}.  \cr
-\tab \cr
-\code{P.CI.upper.hist} \tab List of matrices containing the upper bounds of the confidence intervals for each predicted transition probability matrix in \code{P.hist}.  \cr
-\tab \cr
-\code{full.X} \tab Full design matrix corresponding to the \code{newdata} provided. \cr
-\tab \cr
-\code{P.sim.hist} \tab List of transition probability matrices simulated to obtain the confidence intervals at each time point from \code{newdata}. May be useful to quickly obtain intervals for a different confidence level. \cr
-}
+Estimated transition probabilities (and confidence intervals).
+\item{P.pred}{Predicted transition probability matrix corresponding to the time horizon specified in \code{newdata}. This is a \code{nstates x nstates} matrix.}
+\item{P.CI.lower}{Matrix containing the lower bounds of the confidence intervals for the predicted transition probability matrix.}
+\item{P.CI.upper}{Matrix containing the upper bounds of the confidence intervals for the predicted transition probability matrix.}
+\item{P.hist}{List of predicted transition probability matrices computed at each time point specified in \code{newdata}. This is a \code{nstates x nstates x n.pred} array, where \code{n.pred} is the number of rows in \code{newdata}.}
+\item{P.CI.lower.hist}{List of matrices containing the lower bounds of the confidence intervals for each predicted transition probability matrix in \code{P.hist}..}
+\item{P.CI.upper.hist}{List of matrices containing the upper bounds of the confidence intervals for each predicted transition probability matrix in \code{P.hist}.}
+\item{full.X}{Full design matrix corresponding to the \code{newdata} provided.}
+\item{P.sim.hist}{List of transition probability matrices simulated to obtain the confidence intervals at each time point from \code{newdata}. May be useful to quickly obtain intervals for a different confidence level.}
 }
 \description{
 Function to predict and plot the estimated transition probabilities (and confidence intervals).

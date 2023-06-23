@@ -34,18 +34,12 @@ Q.pred(object, newdata, get.CI = TRUE,
 \item{...}{Other graphical parameters.}
 }
 \value{
-Estimated transition intensities (and confidence intervals). \tabular{ll}{
-
-\code{Q.hist} \tab List of predicted transition intensity matrices computed at each time point specified in \code{newdata}. This is a \code{nstates x nstates x n.pred} array, where \code{n.pred} is the number of rows in \code{newdata}. \cr
-\tab \cr
-\code{Q.CI.lower} \tab Matrix containing the lower bounds of the confidence intervals for the predicted transition intensity matrix.  \cr
-\tab \cr
-\code{Q.CI.upper} \tab Matrix containing the upper bounds of the confidence intervals for the predicted transition intensity matrix.  \cr
-\tab \cr
-\code{full.X} \tab Full design matrix corresponding to the \code{newdata} provided. \cr
-\tab \cr
-\code{Q.sim.hist} \tab List of transition intensity matrices simulated to obtain the confidence intervals at each time point from \code{newdata}. May be useful to quickly obtain intervals for a different confidence level. \cr
-}
+Estimated transition intensities (and confidence intervals).
+\item{Q.hist}{List of predicted transition intensity matrices computed at each time point specified in \code{newdata}. This is a \code{nstates x nstates x n.pred} array, where \code{n.pred} is the number of rows in \code{newdata}.}
+\item{Q.CI.lower}{Matrix containing the lower bounds of the confidence intervals for the predicted transition intensity matrix.}
+\item{Q.CI.upper}{Matrix containing the upper bounds of the confidence intervals for the predicted transition intensity matrix.}
+\item{full.X}{Full design matrix corresponding to the \code{newdata} provided.}
+\item{Q.sim.hist}{List of transition intensity matrices simulated to obtain the confidence intervals at each time point from \code{newdata}. May be useful to quickly obtain intervals for a different confidence level.}
 }
 \description{
 Function to predict and plot the estimated transition intensities (and confidence intervals).

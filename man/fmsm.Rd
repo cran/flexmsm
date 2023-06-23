@@ -102,9 +102,14 @@ counts.CT$counts
 
 
 # MODEL FITTING ###
-# (Warning: takes about 18 minutes on a machine with Windows 10,
-#  Intel 2.20 GHz core, 16 GB of RAM and 8 cores. The default is
-# to use 2 cores, this takes about 26 minutes.)
+
+# NOTE ***
+# Takes about 18 minutes on a machine with Windows 10,
+# Intel 2.20 GHz core, 16 GB of RAM and 8 cores, using all cores.
+# The default is to use 2 cores, this takes about 26 minutes.
+# To use all available cores on your device input no_cores = NULL.
+# ****
+
 fmsm.out <- fmsm(formula = formula, data = Data,
                  id = PTNUM, state = state, death = TRUE,
                  fit = TRUE, parallel = TRUE, no_cores = 2,
