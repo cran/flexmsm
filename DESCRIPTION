@@ -1,7 +1,7 @@
 Package: flexmsm
 Type: Package
 Title: A General Framework for Flexible Multi-State Survival Modelling
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: 
   c(person(given = "Alessia",
            family = "Eletti",
@@ -22,15 +22,15 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
-Imports: GJRM, mgcv, stats, trust, msm, matrixStats, parallel
+Imports: GJRM, mgcv, stats, trust, matrixStats, parallel
 Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Depends: R (>= 2.10)
 NeedsCompilation: no
-Packaged: 2023-06-23 09:36:43 UTC; Alessia
+Packaged: 2024-07-19 09:41:16 UTC; Alessia
 Author: Alessia Eletti [aut, cre],
   Giampiero Marra [aut],
   Rosalba Radice [aut]
 Maintainer: Alessia Eletti <alessia.eletti.19@ucl.ac.uk>
 Repository: CRAN
-Date/Publication: 2023-06-23 12:20:18 UTC
+Date/Publication: 2024-07-19 10:00:02 UTC

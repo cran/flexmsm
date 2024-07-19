@@ -13,7 +13,7 @@ test_that("Model setup (without model fitting on simulated data).", {
   )
 
 
-  msm.out = fmsm(formula = formula, data = IDM_sim, id = PTNUM, state = state, death = TRUE,
+  msm.out = fmsm(formula = formula, data = IDM_sim, id = 'PTNUM', state = 'state', death = TRUE,
                 fit = FALSE)
 
   expect_equal(round(sum(msm.out$suStf$full.S), 3), round(1.778928, 3))
@@ -37,7 +37,7 @@ test_that("Model setup (without model fitting).", {
                  0                                   # 3-2
   )
 
-  msm.out = fmsm(formula = formula, data = IDM_cav, id = PTNUM, state = state, death = TRUE,
+  msm.out = fmsm(formula = formula, data = IDM_cav, id = 'PTNUM', state = 'state', death = TRUE,
                 fit = FALSE)
 
   expect_equal(round(sum(msm.out$suStf$full.S), 3), round(17.15939, 3))
@@ -61,7 +61,7 @@ test_that("Q matrix setup check.", {
                  0                                   # 3-2
   )
 
-  msm.out = fmsm(formula = formula, data = IDM_cav, id = PTNUM, state = state, death = TRUE,
+  msm.out = fmsm(formula = formula, data = IDM_cav, id = 'PTNUM', state = 'state', death = TRUE,
                 fit = FALSE)
 
   Qmatr = Q.matr.setup.general(params = msm.out$suStf$params, nstates = msm.out$suStf$nstates,

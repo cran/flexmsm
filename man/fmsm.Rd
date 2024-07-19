@@ -9,7 +9,8 @@ fmsm(formula, data, id, state, death, pmethod = 'eigendecomp',
        constraint = NULL, sp.method = 'perf', iterlimsp = 50,
        Q.diagnostics = TRUE, fit = TRUE, iterlim = 100,
        tolsp = 1e-7, tolsp.EFS = 0.1, parallel = FALSE, no_cores = 2,
-       cens.state = NULL, living.exact = NULL, verbose = FALSE)
+       cens.state = NULL, living.exact = NULL, verbose = FALSE,
+       justComp = NULL, approxHess = FALSE)
 }
 \arguments{
 \item{formula}{Model specification for the transition intensities.}
@@ -35,9 +36,9 @@ fmsm(formula, data, id, state, death, pmethod = 'eigendecomp',
 
 \item{sp.0}{Starting values for the smoothing parameters. Defaults to \code{NULL}, i.e. they are computed internally.}
 
-\item{constraint}{A list containing the constraints to be applied to the model parameters. This follows the form \code{list(x1 = (1,1,1), x2 = c())}}
+\item{constraint}{A list containing the constraints to be applied to the model parameters. For example, assuming a process with three transitions, \code{constraint = list(x1 = c(1,1,1), x2 = c(1,2,2))}  means that the effect of covariate \code{x1} is constrained to be equal across the tree transitions and that the effects of \code{x2} on the second and third transitions are constrained to be equal, but the effect on the first transition is left unconstrained.}
 
-\item{sp.method}{Method to be used for smoothing parameter estimation. The default is \code{magic}, the automatic multiple smoothing parameter selection algorithm. Alternatively, \code{efs} can be used for the Fellner-Schall method.}
+\item{sp.method}{Method to be used for smoothing parameter estimation. The default is \code{magic}, the automatic multiple smoothing parameter selection algorithm. Alternatively, \code{efs} can be used for the Fellner-Schall method. To suppress the smoothing parameter estimation set this to \code{NULL}.}
 
 \item{iterlimsp}{Maximum allowed iterations for smoothing parameter estimation.}
 
@@ -60,6 +61,10 @@ fmsm(formula, data, id, state, death, pmethod = 'eigendecomp',
 \item{living.exact}{Name of the variable in the dataset indicating whether an observation is exactly observed or not.}
 
 \item{verbose}{If \code{TRUE}, prints the convergence criterion obtained at each iteration of the full algorithm. The default is \code{FALSE}.}
+
+\item{justComp}{Can be \code{c('lik', 'grad', 'hess')} (or a subvector of this) to compute the log-likelihood, gradient and Hessian at the starting parameter value, without carrying out fitting. Defaults to \code{NULL}.}
+
+\item{approxHess}{If \code{TRUE} an approximation of the Hessian based on the outer product of the gradient vector is computed. The default is \code{FALSE}.}
 }
 \value{
 The function returns an object of class \code{fmsm} as described in \code{fmsmObject}.
@@ -111,7 +116,7 @@ counts.CT$counts
 # ****
 
 fmsm.out <- fmsm(formula = formula, data = Data,
-                 id = PTNUM, state = state, death = TRUE,
+                 id = 'PTNUM', state = 'state', death = TRUE,
                  fit = TRUE, parallel = TRUE, no_cores = 2,
                  pmethod = 'analytic')
 

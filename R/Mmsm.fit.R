@@ -1,118 +1,98 @@
 
 
+Mmsm.fit <- function(paramsMulti,
+                     formula1, data1,
+                     id1, state1, spP1, l.params1,
+                     formula2, data2,
+                     id2, state2, spP2, l.params2,
+                     pmethod,
+                     Q.diagnostics, iterlimsp,
+                     iterlim,
+                     sp.method,
+                     verbose, tolsp, tolsp.EFS,
+                     parallel, no_cores){
 
 
 
-msm.fit = function(params.0, sp, pmethod, suStf, death,
-                   Q.diagnostics = FALSE, iterlimsp = iterlimsp, iterlim = iterlim,
-                   sp.method = 'perf', approxHess,
-                   verbose, tolsp, tolsp.EFS, parallel, no_cores){
-
-  optFun = LikGradHess.general
-  if(approxHess) optFun = LikGradapproxHess.general
 
   stoprule.SP = stoprule.SP.efs = NULL
   conv.sp = Qmatr.diagnostics.list = NULL
+  Sl.sfCM = NULL
   rp = D = L = Sl.sfTemp = St = NULL # will be not null only if efs is used
   bs.mgfit = magpp = wor.c = NULL
   iter.sp = iter.inner = NULL
 
-  # Unpack necessary variables -------------------------------------------------------------------
-  data = suStf$data # HERE WE USED TO HAVE $data BUT I THINK THAT IN ALL OTHER TESTS I NORMALLY DO data AND data.long COINCIDE (not in no intercept test though)
-  nstates = suStf$nstates
-  start.pos.par = suStf$start.pos.par
-  do.gradient = do.hessian = TRUE # not sure if to keep this or not
-
-  pos.optparams = suStf$pos.optparams
-  pos.optparams2 = suStf$pos.optparams2
-
-  l.short.formula = suStf$l.short.formula
-  whereQ = suStf$whereQ
-  full.X = suStf$full.X
-
-  Sl.sf = suStf$Sl.sf # what is the difference between Sl.sf and S.list ? (check this - it seems former is only for EFS)
-
+  if(Q.diagnostics) Qmatr.diagnostics.list = list()
   silent.trust = FALSE
 
-
-  # # Fixing S.list [MOVED WITHIN THE SMOOTHING LOOP - keep an eye on correctness of this]
-  # S.list = suStf$S.list
-  # # Keep an eye on whether this fix is OK - this is just to remove NULL, may not be necessary any more
-  # S.list.temp = list()
-  # ii.fix = 1
-  # for(i.fix in 1:length(S.list)){
-  #   if(!is.null(S.list[[i.fix]])){
-  #     S.list.temp[[ii.fix]] = S.list[[i.fix]]
-  #     ii.fix = ii.fix + 1
-  #   }
-  # }
-  # S.list = S.list.temp
-  # rm(S.list.temp)
-
-  start.pos.par.only.smooth = suStf$start.pos.par.only.smooth
-  start.pos.par.only.smooth.FPC = suStf$start.pos.par.only.smooth.FPC
-  start.pos.par.detailed = suStf$start.pos.par.detailed
-
-  MM = list(start.pos.par = start.pos.par,
-            pos.optparams = pos.optparams,
-            pos.optparams2 = pos.optparams2,
-            l.short.formula = l.short.formula,
-            whereQ = whereQ,
-            nstates = nstates,
-            l.params = length(params.0),
-            cens.state = suStf$cens.state)
-
-
-  # ******************** #
-  # Penalty matrix setup #
-  # ******************** #
-  # Setup full penalty matrix to be used for penalized likelihood estimation
-  pen.matr.S.lambda = penalty.setup(sp = sp, suStf = suStf)
-  pen.matr.S.lambda = pen.matr.S.lambda[1:max(pos.optparams2) == pos.optparams2, 1:max(pos.optparams2) == pos.optparams2]
-  # ----------------------------------------------------------------------------------------------
-
-
-
-  # ***** OPTIMIZATION STARTS HERE *****
-
-  if(Q.diagnostics) Qmatr.diagnostics.list = list()
 
   ii = 1
   fit.all = list()
 
-  fit <- try(trust::trust(optFun, params.0, rinit = 1, # the following are all params needed by the function ********
-             data = data, full.X = full.X, MM = MM, pen.matr.S.lambda = pen.matr.S.lambda, # *****
-              aggregated.provided = FALSE, do.gradient = TRUE, do.hessian = TRUE,
-             pmethod = pmethod, death = death, verbose = verbose,
-             Qmatr.diagnostics.list = Qmatr.diagnostics.list,
-             parallel = parallel, no_cores = no_cores,
-             rmax = 100, parscale = rep(1, length(params.0)), blather = TRUE, iterlim = iterlim), silent = silent.trust)
+  fit <- try(trust::trust(objfun = MmsmLikGradHess, parinit = paramsMulti,
+                          formula1 = formula1, data1 = data1, l.params1 = l.params1, # --- arguments needed for the objfun from here ---
+                          id1 = id1, state1 = state1, spP1 = spP1,
+                          formula2 = formula2, data2 = data2, l.params2 = l.params2,
+                          id2 = id2, state2 = state2,  spP2 = spP2,
+                          pmethod = pmethod,
+                          Q.diagnostics = Q.diagnostics, iterlimsp = iterlimsp,
+                          iterlim = iterlim,
+                          sp.method = sp.method,
+                          verbose = verbose, tolsp = tolsp, tolsp.EFS = tolsp.EFS,
+                          parallel = parallel, no_cores = no_cores, # --- arguments needed for the objfun finish here ---
+                          rinit = 1, rmax = 100, parscale = rep(1, length(paramsMulti)), blather = TRUE),
+             silent = silent.trust)
+
 
   if(!is.null(attr(fit$error, 'class'))) warning('Unable to carry out call n. ', ii, ' to trust region algorithm. Look into partial results for diagnostics.')
-
-
 
   fit.all[[ii]] = fit
   ii = ii + 1
 
+  sp = c(spP1, spP2)
   sp.all = c(sp)
 
 
   if( length(sp) > 0 ){ # if length is 0, this suppresses smoothing parameter estimation
 
-    # Fixing S.list
-    S.list = suStf$S.list
-    # Keep an eye on whether this fix is OK - this is just to remove NULL, may not be necessary any more
-    S.list.temp = list()
-    ii.fix = 1
-    for(i.fix in 1:length(S.list)){
-      if(!is.null(S.list[[i.fix]])){
-        S.list.temp[[ii.fix]] = S.list[[i.fix]]
-        ii.fix = ii.fix + 1
+    # SETTING UP THE COMBINED PENALTY *****************************************
+    spposP1 = fit$proc1$suStf$start.pos.par.only.smooth.FPC.constr
+    spposP2 = fit$proc2$suStf$start.pos.par.only.smooth.FPC.constr
+    offCM = c(spposP1, l.params1 + spposP2)
+
+    if(length(spP1) > 0){
+      # S.list for Process 1
+      S.listP1 = fit$proc1$suStf$S.list
+      S.list.temp = list()
+      ii.fix = 1
+      for(i.fix in 1:length(S.listP1)){
+        if(!is.null(S.listP1[[i.fix]])){
+          S.list.temp[[ii.fix]] = S.listP1[[i.fix]]
+          ii.fix = ii.fix + 1
+        }
       }
+      rm(S.listP1)
     }
-    S.list = S.list.temp
+
+
+    if(length(spP2) > 0){
+      # S.list for Process 2
+      S.listP2 = fit$proc2$suStf$S.list
+      S.list.temp = list()
+      # ii.fix = 1
+      for(i.fix in 1:length(S.listP2)){
+        if(!is.null(S.listP2[[i.fix]])){
+          S.list.temp[[ii.fix]] = S.listP2[[i.fix]]
+          ii.fix = ii.fix + 1
+        }
+      }
+      rm(S.listP2)
+    }
+
+    S.listCM = S.list.temp
     rm(S.list.temp)
+    # *********************************************
+
 
     # ********************************************* #
     # MAGIC BASED SMOOTHING PARAMETER ESTIMATION ####
@@ -136,29 +116,36 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
         wor.c <- GJRM::working.comp(fit)
 
         bs.mgfit <- mgcv::magic(y = wor.c$Z, X = wor.c$X,
-                          sp = sp, S = S.list, off = suStf$start.pos.par.only.smooth.FPC.constr,
-                          # rank = qu.mag$rank,
-                          gcv = FALSE)
+                                sp = sp, S = S.listCM, off = offCM,
+                                # rank = qu.mag$rank,
+                                gcv = FALSE)
         sp <- bs.mgfit$sp
+        if(length(spP1) > 0){
+          spP1 <- sp[1:length(spP1)]
+          if(length(spP2) > 0) spP2 <- sp[(length(spP1)+1):length(sp)]
+        }
+        if(length(spP2) > 0) spP2 <- sp[1:length(sp)]
 
         iter.sp <- iter.sp + 1
         names(sp) <- names(spo)
-
-        # Setup full penalty matrix to be used for penalized likelihood estimation
-        pen.matr.S.lambda = penalty.setup(sp = sp, suStf = suStf)
-        pen.matr.S.lambda = pen.matr.S.lambda[1:max(pos.optparams2) == pos.optparams2, 1:max(pos.optparams2) == pos.optparams2]
 
 
         # ***** With Q computation put internally *****
         if(Q.diagnostics) Qmatr.diagnostics.list = fit$Qmatr.diagnostics.list
 
-        fit <- try(trust::trust(optFun, o.ests, rinit = 1, # the following are all params needed by the function ********
-                     data = data, full.X = full.X, MM = MM, pen.matr.S.lambda = pen.matr.S.lambda, # *****
-                      aggregated.provided = FALSE, do.gradient = TRUE, do.hessian = TRUE,
-                     pmethod = pmethod, death = death, verbose = verbose,
-                     Qmatr.diagnostics.list = Qmatr.diagnostics.list,
-                     parallel = parallel, no_cores = no_cores, # **************************************
-                     rmax = 100, parscale = rep(1, length(params.0)), blather = TRUE, iterlim = iterlim), silent = silent.trust)
+        fit <- try(trust::trust(objfun = MmsmLikGradHess, parinit = paramsMulti,
+                                formula1 = formula1, data1 = data1, l.params1 = l.params1, # --- arguments needed for the objfun from here ---
+                                id1 = id1, state1 = state1, spP1 = spP1,
+                                formula2 = formula2, data2 = data2, l.params2 = l.params2,
+                                id2 = id2, state2 = state2,  spP2 = spP2,
+                                pmethod = pmethod,
+                                Q.diagnostics = Q.diagnostics, iterlimsp = iterlimsp,
+                                iterlim = iterlim,
+                                sp.method = sp.method,
+                                verbose = verbose, tolsp = tolsp, tolsp.EFS = tolsp.EFS,
+                                parallel = parallel, no_cores = no_cores, # --- arguments needed for the objfun finish here ---
+                                rinit = 1, rmax = 100, parscale = rep(1, length(o.ests)), blather = TRUE),
+                   silent = silent.trust)
 
         if(!is.null(attr(fit$error, 'class'))) warning('Unable to carry out call n. ', ii, ' to trust region algorithm. Look into partial results for diagnostics.')
 
@@ -192,8 +179,8 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
       # ******************************************* #
 
 
-      qu.mag = list(Ss = S.list,
-                    off =  suStf$start.pos.par.only.smooth.FPC.constr)
+      qu.mag = list(Ss = S.listCM,
+                    off =  offCM)
 
 
       LDfun <- function(Hp, eigen.fix) {
@@ -273,24 +260,51 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
                                    length(fit$argument))$Z)
 
 
-      # Fixing Sl.sf
+      # Fixing and combining Sl.sf
+      Sl.sfP1 = fit$proc1$suStf$Sl.sf
+
       Sl.sf.temp = list()
       jj = 1
-      smooth.mapping = match(start.pos.par.detailed[-length(start.pos.par.detailed)], start.pos.par.only.smooth[-length(start.pos.par.only.smooth)])
-      smooth.length = diff(start.pos.par.detailed)[!is.na(smooth.mapping)]
-      for(i in 1:length(Sl.sf)){
 
-        for(i.intern in 1:length(Sl.sf[[i]])) {
-          Sl.sf.temp[[jj]] = Sl.sf[[i]][[i.intern]]
+      # proc 1
+      if(length(spP1) > 0){
+        smooth.mapping = match(fit$proc1$suStf$start.pos.par.detailed[-length(fit$proc1$suStf$start.pos.par.detailed)], fit$proc1$suStf$start.pos.par.only.smooth[-length(fit$proc1$suStf$start.pos.par.only.smooth)])
+        smooth.length = diff(fit$proc1$suStf$start.pos.par.detailed)[!is.na(smooth.mapping)]
+        for(i in 1:length(Sl.sfP1)){
 
-          Sl.sf.temp[[jj]]$start = suStf$start.pos.par.only.smooth.constr[[jj]]
-          Sl.sf.temp[[jj]]$stop = suStf$start.pos.par.only.smooth.constr[[jj]] + smooth.length[jj] - 1 # IS THIS OK ALSO FOR MULTIPLE SMOOTHS per transition ???
+          for(i.intern in 1:length(Sl.sfP1[[i]])) {
+            Sl.sf.temp[[jj]] = Sl.sfP1[[i]][[i.intern]]
 
-          jj = jj + 1
+            Sl.sf.temp[[jj]]$start = fit$proc1$suStf$start.pos.par.only.smooth.constr[[jj]]
+            Sl.sf.temp[[jj]]$stop = fit$proc1$suStf$start.pos.par.only.smooth.constr[[jj]] + smooth.length[jj] - 1
+
+            jj = jj + 1
+          }
         }
+        rm(Sl.sfP1)
       }
 
-      Sl.sf = Sl.sf.temp
+
+      # proc 2
+      if(length(spP2) > 0){
+        Sl.sfP2 = fit$proc2$suStf$Sl.sf
+        smooth.mapping = match(fit$proc2$suStf$start.pos.par.detailed[-length(fit$proc2$suStf$start.pos.par.detailed)], fit$proc2$suStf$start.pos.par.only.smooth[-length(fit$proc2$suStf$start.pos.par.only.smooth)])
+        smooth.length = diff(fit$proc2$suStf$start.pos.par.detailed)[!is.na(smooth.mapping)]
+        for(i in 1:length(Sl.sfP2)){
+
+          for(i.intern in 1:length(Sl.sfP2[[i]])) {
+            Sl.sf.temp[[jj]] = Sl.sfP2[[i]][[i.intern]]
+
+            Sl.sf.temp[[jj]]$start = l.params1 + fit$proc1$suStf$start.pos.par.only.smooth.constr[[jj]]
+            Sl.sf.temp[[jj]]$stop = l.params1 + fit$proc1$suStf$start.pos.par.only.smooth.constr[[jj]] + smooth.length[jj] - 1
+
+            jj = jj + 1
+          }
+        }
+        rm(Sl.sfP2)
+      }
+
+      Sl.sfCM = Sl.sf.temp
       rm(Sl.sf.temp)
 
       # attr(Sl.sf, "lambda") <- attr(Sl.sf, "lambda") # not sure if these two are needed too - leave for now
@@ -298,7 +312,7 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
       attr(Sl.sf, 'cholesky') = FALSE
 
 
-      Sl.sfTemp <- Sl.sf
+      Sl.sfTemp <- Sl.sfCM
       for (i in 1:length(Sl.sfTemp)){
         Sl.sfTemp[[i]]$D <- solve(Sl.sfTemp[[i]]$D)
       }
@@ -307,7 +321,7 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
 
       for (iter in 1:200) {
         o.ests <- c(fit$argument)
-        rp <- ldetS(Sl.sf, rho = lsp, fixed = rep(FALSE, length(lsp)), np = length(fit$argument), root = TRUE)
+        rp <- ldetS(Sl.sfCM, rho = lsp, fixed = rep(FALSE, length(lsp)), np = length(fit$argument), root = TRUE)
         o.estsStar <- Sl.initial.repara(Sl.sfTemp, o.ests, inverse = TRUE)
 
         Vb <- Sl.initial.repara(Sl.sfTemp, GJRM::PDef(fit$hessian)$res.inv, inverse = TRUE)
@@ -320,7 +334,7 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
         ipiv[piv] <- 1:p
         Vb <- crossprod(forwardsolve(t(L), diag(D, nrow = p)[piv, , drop = FALSE])[ipiv, , drop = FALSE])
         Vb <- Sl.repara(rp$rp, Vb, inverse = TRUE)
-        SVb <- Sl.termMult(Sl.sf, Vb)
+        SVb <- Sl.termMult(Sl.sfCM, Vb)
         trVS <- rep(0, length(SVb))
 
         for (i in 1:length(SVb)) {
@@ -329,7 +343,7 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
         }
 
         start <- Sl.repara(rp$rp, o.estsStar)
-        Sb <- Sl.termMult(Sl.sf, start, full = TRUE)
+        Sb <- Sl.termMult(Sl.sfCM, start, full = TRUE)
         bSb <- rep(0, length(Sb))
         for (i in 1:length(Sb)) bSb[i] <- sum(start * Sb[[i]])
 
@@ -344,29 +358,35 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
         old.reml <- -as.numeric((-fit$l - drop(t(fit$argument) %*% fit$S.h %*% fit$argument)/2)/gamma + rp$ldetS/2 - ldetHp/2 + Mp * (log(2 * pi)/2) - log(gamma)/2)
 
         sp1 <- exp(lsp1)
-
         names(sp1) <- names(lsp1)
 
-
-        # Setup full penalty matrix to be used for penalized likelihood estimation
-        pen.matr.S.lambda = penalty.setup(sp = sp1, suStf = suStf)
-        pen.matr.S.lambda = pen.matr.S.lambda[1:max(pos.optparams2) == pos.optparams2, 1:max(pos.optparams2) == pos.optparams2]
+        if(length(spP1) > 0){
+          spP1 <- sp1[1:length(spP1)]
+          if(length(spP2) > 0) spP2 <- sp1[(length(spP1)+1):length(sp1)]
+        }
+        if(length(spP2) > 0) spP2 <- sp1[1:length(sp1)]
 
 
         if(Q.diagnostics) Qmatr.diagnostics.list = fit$Qmatr.diagnostics.list
-        fit <- try(trust::trust(optFun, o.ests, rinit = 1, # the following are all params needed by the function ********
-                     data = data, full.X = full.X, MM = MM, pen.matr.S.lambda = pen.matr.S.lambda, # *****
-                      aggregated.provided = FALSE, do.gradient = TRUE, do.hessian = TRUE,
-                     pmethod = pmethod, death = death, verbose = verbose,
-                     Qmatr.diagnostics.list = Qmatr.diagnostics.list,
-                     parallel = parallel, no_cores = no_cores, # *****
-                     rmax = 100, parscale = rep(1, length(params.0)), blather = TRUE, iterlim = iterlim), silent = silent.trust)
 
+        fit <- try(trust::trust(objfun = MmsmLikGradHess, parinit = paramsMulti,
+                                formula1 = formula1, data1 = data1, l.params1 = l.params1, # --- arguments needed for the objfun from here ---
+                                id1 = id1, state1 = state1, spP1 = spP1,
+                                formula2 = formula2, data2 = data2, l.params2 = l.params2,
+                                id2 = id2, state2 = state2,  spP2 = spP2,
+                                pmethod = pmethod,
+                                Q.diagnostics = Q.diagnostics, iterlimsp = iterlimsp,
+                                iterlim = iterlim,
+                                sp.method = sp.method,
+                                verbose = verbose, tolsp = tolsp, tolsp.EFS = tolsp.EFS,
+                                parallel = parallel, no_cores = no_cores, # --- arguments needed for the objfun finish here ---
+                                rinit = 1, rmax = 100, parscale = rep(1, length(o.ests)), blather = TRUE),
+                   silent = silent.trust)
 
         if(!is.null(attr(fit$error, 'class'))) warning('Unable to carry out call n. ', ii, ' to trust region algorithm. Look into partial results for diagnostics.')
 
         iter.inner <- iter.inner + fit$iterations
-        rp <- ldetS(Sl.sf, rho = lsp1, fixed = rep(FALSE, length(lsp1)), np = length(fit$argument), root = TRUE)
+        rp <- ldetS(Sl.sfCM, rho = lsp1, fixed = rep(FALSE, length(lsp1)), np = length(fit$argument), root = TRUE)
         Vb <- Sl.initial.repara(Sl.sfTemp, GJRM::PDef(fit$hessian)$res.inv, inverse = TRUE)
         LD <- LDfun(GJRM::PDef(Vb)$res.inv, eigen.fix)
         L <- LD$L
@@ -381,25 +401,33 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
             sp2 <- exp(lsp2)
             names(sp2) <- names(lsp2)
 
-            # Setup full penalty matrix to be used for penalized likelihood estimation
-            pen.matr.S.lambda = penalty.setup(sp = sp2, suStf = suStf)
-            pen.matr.S.lambda = pen.matr.S.lambda[1:max(pos.optparams2) == pos.optparams2, 1:max(pos.optparams2) == pos.optparams2]
+            if(length(spP1) > 0){
+              spP1 <- sp2[1:length(spP1)]
+              if(length(spP2) > 0) spP2 <- sp2[(length(spP1)+1):length(sp2)]
+            }
+            if(length(spP2) > 0) spP2 <- sp2[1:length(sp2)]
 
             if(Q.diagnostics) Qmatr.diagnostics.list = fit$Qmatr.diagnostics.list
-            fit2 <- try(trust::trust(optFun, o.ests, rinit = 1, # the following are all params needed by the function ********
-                          data = data, full.X = full.X, MM = MM, pen.matr.S.lambda = pen.matr.S.lambda, # *****
-                           aggregated.provided = FALSE, do.gradient = TRUE, do.hessian = TRUE,
-                          pmethod = pmethod, death = death, verbose = verbose,
-                          Qmatr.diagnostics.list = Qmatr.diagnostics.list,
-                          parallel = parallel, no_cores = no_cores, # *****
-                          rmax = 100, parscale = rep(1, length(params.0)), blather = TRUE, iterlim = iterlim), silent = silent.trust)
 
+            fit <- try(trust::trust(objfun = MmsmLikGradHess, parinit = paramsMulti,
+                                    formula1 = formula1, data1 = data1, l.params1 = l.params1, # --- arguments needed for the objfun from here ---
+                                    id1 = id1, state1 = state1, spP1 = spP1,
+                                    formula2 = formula2, data2 = data2, l.params2 = l.params2,
+                                    id2 = id2, state2 = state2,  spP2 = spP2,
+                                    pmethod = pmethod,
+                                    Q.diagnostics = Q.diagnostics, iterlimsp = iterlimsp,
+                                    iterlim = iterlim,
+                                    sp.method = sp.method,
+                                    verbose = verbose, tolsp = tolsp, tolsp.EFS = tolsp.EFS,
+                                    parallel = parallel, no_cores = no_cores, # --- arguments needed for the objfun finish here ---
+                                    rinit = 1, rmax = 100, parscale = rep(1, length(o.ests)), blather = TRUE),
+                       silent = silent.trust)
 
             if(!is.null(attr(fit2$error, 'class'))) warning('Unable to carry out call n. ', ii, ' to trust region algorithm. Look into partial results for diagnostics.')
 
 
             iter.inner <- iter.inner + fit2$iterations
-            rp <- ldetS(Sl.sf, rho = lsp2, fixed = rep(FALSE, length(lsp2)), np = length(fit$argument), root = TRUE)
+            rp <- ldetS(Sl.sfCM, rho = lsp2, fixed = rep(FALSE, length(lsp2)), np = length(fit$argument), root = TRUE)
             Vb <- Sl.initial.repara(Sl.sfTemp, GJRM::PDef(fit2$hessian)$res.inv,
                                     inverse = TRUE)
             LD <- LDfun(GJRM::PDef(Vb)$res.inv, eigen.fix)
@@ -433,26 +461,33 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
 
             names(sp1) <- names(lsp1)
 
-            # Setup full penalty matrix to be used for penalized likelihood estimation
-            pen.matr.S.lambda = penalty.setup(sp = sp1, suStf = suStf)
-            pen.matr.S.lambda = pen.matr.S.lambda[1:max(pos.optparams2) == pos.optparams2, 1:max(pos.optparams2) == pos.optparams2]
+            if(length(spP1) > 0){
+              spP1 <- sp1[1:length(spP1)]
+              if(length(spP2) > 0) spP2 <- sp1[(length(spP1)+1):length(sp1)]
+            }
+            if(length(spP2) > 0) spP2 <- sp1[1:length(sp1)]
 
 
             if(Q.diagnostics) Qmatr.diagnostics.list = fit$Qmatr.diagnostics.list
 
-            fit <- try(trust::trust(optFun, o.ests, rinit = 1, # the following are all params needed by the function ********
-                         data = data, full.X = full.X, MM = MM, pen.matr.S.lambda = pen.matr.S.lambda, # *****
-                          aggregated.provided = FALSE, do.gradient = TRUE, do.hessian = TRUE,
-                         pmethod = pmethod, death = death, verbose = verbose,
-                         Qmatr.diagnostics.list = Qmatr.diagnostics.list,
-                         parallel = parallel, no_cores = no_cores, # *****
-                         rmax = 100, parscale = rep(1, length(params.0)), blather = TRUE, iterlim = iterlim), silent = silent.trust)
-
+            fit <- try(trust::trust(objfun = MmsmLikGradHess, parinit = paramsMulti,
+                                    formula1 = formula1, data1 = data1, l.params1 = l.params1, # --- arguments needed for the objfun from here ---
+                                    id1 = id1, state1 = state1, spP1 = spP1,
+                                    formula2 = formula2, data2 = data2, l.params2 = l.params2,
+                                    id2 = id2, state2 = state2,  spP2 = spP2,
+                                    pmethod = pmethod,
+                                    Q.diagnostics = Q.diagnostics, iterlimsp = iterlimsp,
+                                    iterlim = iterlim,
+                                    sp.method = sp.method,
+                                    verbose = verbose, tolsp = tolsp, tolsp.EFS = tolsp.EFS,
+                                    parallel = parallel, no_cores = no_cores, # --- arguments needed for the objfun finish here ---
+                                    rinit = 1, rmax = 100, parscale = rep(1, length(o.ests)), blather = TRUE),
+                       silent = silent.trust)
 
             if(!is.null(attr(fit$error, 'class'))) warning('Unable to carry out call n. ', ii, ' to trust region algorithm. Look into partial results for diagnostics.')
 
             iter.inner <- iter.inner + fit$iterations
-            rp <- ldetS(Sl.sf, rho = lsp1, fixed = rep(FALSE, length(lsp1)), np = length(fit$argument), root = TRUE)
+            rp <- ldetS(Sl.sfCM, rho = lsp1, fixed = rep(FALSE, length(lsp1)), np = length(fit$argument), root = TRUE)
             Vb <- Sl.initial.repara(Sl.sfTemp, GJRM::PDef(fit$hessian)$res.inv, inverse = TRUE)
             LD <- LDfun(GJRM::PDef(Vb)$res.inv, eigen.fix)
             L <- LD$L
@@ -500,29 +535,29 @@ msm.fit = function(params.0, sp, pmethod, suStf, death,
 
 
   } else {
-  wor.c <- GJRM::working.comp(fit)
-  bs.mgfit <- mgcv::magic(y = wor.c$Z, X = wor.c$X,
-                    sp = numeric(0), S = list(),
-                    off = numeric(0))
-  magpp <- mgcv::magic.post.proc(wor.c$X, bs.mgfit)
-}
-
+    wor.c <- GJRM::working.comp(fit)
+    bs.mgfit <- mgcv::magic(y = wor.c$Z, X = wor.c$X,
+                            sp = numeric(0), S = list(),
+                            off = numeric(0))
+    magpp <- mgcv::magic.post.proc(wor.c$X, bs.mgfit)
+  }
 
 
   sp.all.matr = matrix(sp.all, nrow = length(sp))
 
+
+  # CHECK WHAT WE WILL BE KEEPING FROM THE BELOW AND WHAT NOT
 
   list(fit = fit,
        fit.all = fit.all, sp.all = sp.all, sp.all.matr = sp.all.matr, # later on will only keep the matrix version, but need to make sure the definition is OK
        iter.if = fit.all[[1]]$iterations,
        sp.method = sp.method, conv.sp = conv.sp, iter.sp = iter.sp,
        iter.inner = iter.inner, bs.mgfit = bs.mgfit, wor.c = wor.c,
-       sp = sp, magpp = magpp, Sl.sf = Sl.sf,
+       sp = sp, magpp = magpp, Sl.sfCM = Sl.sfCM,
        Sl.sfTemp = Sl.sfTemp, # from efs, used later for post fit quantities computation
        rp = rp$rp, D = D, L = L, St = St,
        Qmatr.diagnostics.list = Qmatr.diagnostics.list,
        stoprule.SP = stoprule.SP, stoprule.SP.efs = stoprule.SP.efs)
-
 
 
 

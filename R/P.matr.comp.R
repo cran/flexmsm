@@ -19,16 +19,16 @@ P.matr.comp = function(Qmatr, timelag, method = 'eigendecomp'){
 
   if( method == 'eigendecomp'){
 
-    tol = 30 # 15 # tolerance for when we are checking whether the eigenvalues are distinct... too small, not small enough? Keep an eye on this
+    tol = 15 #30 # 15 # tolerance for when we are checking whether the eigenvalues are distinct... too small, not small enough? Keep an eye on this
 
     decomp.obj = eigen(Qmatr)
 
     eigen.vec = decomp.obj$vectors
     eigen.val = decomp.obj$values
 
-    # **** Check for distinct eigenvalues ****
-    if( any(duplicated(round(eigen.val, tol))) ) stop('The eigenvalues of the Q matrix are not distinct, the eigendecompisition method cannot be used.')
-    # ****************************************
+    # # **** Check for distinct eigenvalues ****
+    # if( any(duplicated(round(eigen.val, tol))) ) stop('The eigenvalues of the Q matrix are not distinct, the eigendecompisition method cannot be used.')
+    # # ****************************************
 
     eigen.vec.inv = solve(eigen.vec)
 

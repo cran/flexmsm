@@ -71,11 +71,13 @@ state.pairs.CT = function(formula = NULL, data = NULL, whereQ = NULL, nstates = 
 
   rownames(counts) = colnames(counts) = paste('state', 1:nstates)
 
-
+  tmp.pairs = cbind(data[-nrow(data), state], data[-1, state])[same.person,]
+  full.counts = table(tmp.pairs[,1], tmp.pairs[,2])
 
   list(counts = counts,
        act.tr.times = act.tr.times,
-       act.who = act.who)
+       act.who = act.who,
+       full.counts = full.counts)
 
 }
 

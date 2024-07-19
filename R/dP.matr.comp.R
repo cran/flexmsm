@@ -12,35 +12,63 @@ dP.matr.comp = function(nstates, l.params, timelag, dQmatr.i, method = 'eigendec
 
   if(method == 'eigendecomp'){
 
-    tol = 30 #15 # tolerance for when we are checking whether the eigenvalues are distinct... too small, not small enough? Keep an eye on this
+    tol = 12 #30 #15 # tolerance for when we are checking whether the eigenvalues are distinct... too small, not small enough? Keep an eye on this
 
     eigen.vec.i = decomp.obj.i$vectors
-    eigen.val.i = decomp.obj.i$values
-
-    # **** Check for distinct eigenvalues **** perhaps not needed since should get blocked at the level of P.matr.comp() function (which is always called before)
-    if( any(duplicated(round(eigen.val.i, tol))) ) stop('The eigenvalues of the Q matrix are not distinct, the eigendecompisition method cannot be used.')
-    # ****************************************
-
     eigen.vec.inv.i = decomp.obj.i$vectors.inv
+    eigen.val.i = decomp.obj.i$values
 
     # Initialize matrix
     dPmatr.i = array(0, dim = c(nstates, nstates, l.params)) # because it's for single individual
 
+    # **** Check for distinct eigenvalues **** this will imply a different E matrix (correction needed for duplicated eigenvalues)
+    if( FALSE
+        # !any(duplicated(round(eigen.val.i, tol)))
+        ){
+      # stop('The eigenvalues of the Q matrix are not distinct, the eigendecompisition method cannot be used.')
 
-    # *** NEW! Setup of required quantities (outside of for loop) ***************
-    eem1 = matrix(exp(rep(eigen.val.i, nstates)*timelag), ncol = nstates)
-    eem2 = t(eem1)
-    diag(eem2) = 0
+      # *** NEW! Setup of required quantities (outside of for loop) ***************
+      eem1 = matrix(exp(rep(eigen.val.i, nstates)*timelag), ncol = nstates)
+      eem2 = t(eem1)
+      diag(eem2) = 0
 
-    num = eem1 - eem2
+      num = eem1 - eem2
 
-    eem1 = matrix(rep(eigen.val.i, nstates), ncol = nstates)
-    diag(eem1) = 1/timelag
-    eem2 = t(eem1)
-    diag(eem2) = 0
+      eem1 = matrix(rep(eigen.val.i, nstates), ncol = nstates)
+      diag(eem1) = 1/timelag
+      eem2 = t(eem1)
+      diag(eem2) = 0
 
-    denom = eem1 - eem2
-    # ****************************************************************************
+      denom = eem1 - eem2
+      # ****************************************************************************
+
+      E.matr = num / denom
+
+    } else {
+
+      E.matr = matrix(0, ncol = nstates, nrow = nstates)
+
+      for(l in 1:nstates){ # we only need the upper triangle since its symmetric
+        for(m in l:nstates){
+          if(round(abs(eigen.val.i[l] - eigen.val.i[m]), tol) != 0){
+            E.matr[l,m] = (exp(eigen.val.i[l]*timelag) - exp(eigen.val.i[m]*timelag))/(eigen.val.i[l] - eigen.val.i[m])
+          } else {
+            E.matr[l,m] = timelag * exp(eigen.val.i[l]*timelag)
+          }
+        }
+      }
+
+      # obtain the full matrix
+      E.matr = E.matr + t(E.matr)
+
+      # add the diagonal
+      diag(E.matr) = timelag * exp(eigen.val.i*timelag)
+
+    }
+
+
+
+
 
     for(r in 1:l.params){
 
@@ -60,7 +88,7 @@ dP.matr.comp = function(nstates, l.params, timelag, dQmatr.i, method = 'eigendec
       #
       # denom = eem1 - eem2
 
-      dPmatr.i[,,r] = eigen.vec.i %*% (G.r * num / denom) %*% eigen.vec.inv.i
+      dPmatr.i[,,r] = eigen.vec.i %*% (G.r * E.matr) %*% eigen.vec.inv.i
 
     }
 

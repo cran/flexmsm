@@ -16,6 +16,7 @@
 #' \item{N}{Number of unique individuals.}
 #' \item{logLik}{The value of the log-likelihood at convergence.}
 #' \item{t.edf}{Total effective degrees of freedom.}
+#' \item{singleComp}{If present, log-likelihood, gradient and Hessian computed at the starting parameter (without fitting).}
 #'
 #'
 #'

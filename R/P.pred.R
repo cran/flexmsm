@@ -12,12 +12,13 @@
 #' @param plot.P Whether to output plots of transition probabilities.
 #' @param which.plots Number between 1 and the maximum number of non-null transition probabilities. This can be used if only some plots are to be plotted.
 #' @param rug Whether to include a rugplot of the observed transition times.
+#' @param params.0 Parameter value at which the transition probability matrix needs to be computed. By default this is \code{NULL} and the MLE found in the fitted model object \code{object} is used. If both a fitted model and a manually inputted parameters vector are provided, the former will be ignored and the P matrix will be computed at the \code{params.0} value.
 #' @param ... Other graphical arguments.
 #'
 #' @usage P.pred(object, newdata, get.CI = TRUE,
 #'        n.sim.CI = 1000, prob.lev = 0.05,
 #'        plot.P = FALSE, which.plots = NULL,
-#'        rug = FALSE, ...)
+#'        rug = FALSE, params.0 = NULL, ...)
 #'
 #' @return Estimated transition probabilities (and confidence intervals).
 #' \item{P.pred}{Predicted transition probability matrix corresponding to the time horizon specified in \code{newdata}. This is a \code{nstates x nstates} matrix.}
@@ -39,16 +40,14 @@ P.pred = function(object, newdata,
                   get.CI = TRUE, n.sim.CI = 1000,
                   prob.lev = 0.05, plot.P = FALSE,
                   # plot.P.stacked = FALSE,
-                  which.plots = NULL, rug = FALSE, ...){
+                  which.plots = NULL, rug = FALSE,
+                  params.0 = NULL, ...){
 
 
   # if(plot.P & plot.P.stacked) stop('For plotting, you have to choose one between the traditional and stacked visualisation.')
   # if(plot.P.stacked & get.CI) warning('Confidence intervals will not be plotted with stacked visualisation.')
 
   P.CI.hist = P.CI.lower = P.CI.upper = discard = NULL
-
-  params.hat = object$msm.fit.object$fit$argument
-  sp.hat = object$msm.fit.object$sp
 
   n.pred = nrow(newdata)
   if(n.pred < 2) stop('newdata needs to have at least two rows.')
@@ -58,11 +57,30 @@ P.pred = function(object, newdata,
   death = suStf$death
 
   full.X = c()
-  for(i in 1:length(object$msm.post.object$msm.post.object)){
-    mod = object$msm.post.object$msm.post.object[[i]]
-    matr = predict(object = mod, newdata = newdata, type = 'lpmatrix')
-    full.X = cbind( full.X, matr)
+
+  if(is.null(object$msm.fit.object$fit$argument) & is.null(params.0)) stop('Parameters vector for the computation of the P matrix not provided. \nYou need to provide either a fitted model through the object argument or the parameters vector through the params.0 argument.')
+
+  if(!is.null(object$msm.fit.object$fit$argument)){
+    params.hat = object$msm.fit.object$fit$argument
+    for(i in 1:length(object$msm.post.object$msm.post.object)){
+      mod = object$msm.post.object$msm.post.object[[i]]
+      matr = predict(object = mod, newdata = newdata, type = 'lpmatrix')
+      full.X = cbind( full.X, matr)
+    }
   }
+
+  if(!is.null(params.0)){
+    params.hat = params.0
+    for(i in 1:length(object$suStf$mod.list)){
+      mod = object$suStf$mod.list[[i]]
+      matr = predict(object = mod, newdata = newdata, type = 'lpmatrix')
+      full.X = cbind( full.X, matr)
+    }
+  }
+  # having the conditions in this order means that if both the fitted model and params.0 are provided,
+  # the fitted parameter will be ignored and overwritten with the manually inputted one.
+
+
 
   # Setup Q matrix
   Qmatr = Q.matr.setup.general(params = params.hat[suStf$pos.optparams], nstates = suStf$nstates,

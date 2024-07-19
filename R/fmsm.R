@@ -24,8 +24,8 @@
 #' @param aggregate Whether or not data should be aggregated (this slightly improves efficiency as redundancies in the data are eliminated). The default is \code{TRUE}.
 #' @param params.0 Starting values for the model parameters. Defaults to \code{NULL}, i.e. they are computed internally.
 #' @param sp.0 Starting values for the smoothing parameters. Defaults to \code{NULL}, i.e. they are computed internally.
-#' @param constraint A list containing the constraints to be applied to the model parameters. This follows the form \code{list(x1 = (1,1,1), x2 = c())}
-#' @param sp.method Method to be used for smoothing parameter estimation. The default is \code{magic}, the automatic multiple smoothing parameter selection algorithm. Alternatively, \code{efs} can be used for the Fellner-Schall method.
+#' @param constraint A list containing the constraints to be applied to the model parameters. For example, assuming a process with three transitions, \code{constraint = list(x1 = c(1,1,1), x2 = c(1,2,2))}  means that the effect of covariate \code{x1} is constrained to be equal across the tree transitions and that the effects of \code{x2} on the second and third transitions are constrained to be equal, but the effect on the first transition is left unconstrained.
+#' @param sp.method Method to be used for smoothing parameter estimation. The default is \code{magic}, the automatic multiple smoothing parameter selection algorithm. Alternatively, \code{efs} can be used for the Fellner-Schall method. To suppress the smoothing parameter estimation set this to \code{NULL}.
 #' @param iterlimsp Maximum allowed iterations for smoothing parameter estimation.
 #' @param Q.diagnostics If \code{TRUE}, diagnostics information on the Q matrix are saved. The default \code{TRUE}.
 #' @param fit If \code{FALSE}, fitting is not carried. May be useful to extract model setup quantities.
@@ -37,7 +37,8 @@
 #' @param cens.state Code used in the dataset to indicate the censored states.
 #' @param living.exact Name of the variable in the dataset indicating whether an observation is exactly observed or not.
 #' @param verbose If \code{TRUE}, prints the convergence criterion obtained at each iteration of the full algorithm. The default is \code{FALSE}.
-#'
+#' @param justComp Can be \code{c('lik', 'grad', 'hess')} (or a subvector of this) to compute the log-likelihood, gradient and Hessian at the starting parameter value, without carrying out fitting. Defaults to \code{NULL}.
+#' @param approxHess If \code{TRUE} an approximation of the Hessian based on the outer product of the gradient vector is computed. The default is \code{FALSE}.
 #'
 #' @importFrom grDevices cm.colors gray heat.colors terrain.colors topo.colors
 #' @importFrom graphics lines par text title
@@ -50,7 +51,8 @@
 #'        constraint = NULL, sp.method = 'perf', iterlimsp = 50,
 #'        Q.diagnostics = TRUE, fit = TRUE, iterlim = 100,
 #'        tolsp = 1e-7, tolsp.EFS = 0.1, parallel = FALSE, no_cores = 2,
-#'        cens.state = NULL, living.exact = NULL, verbose = FALSE)
+#'        cens.state = NULL, living.exact = NULL, verbose = FALSE,
+#'        justComp = NULL, approxHess = FALSE)
 #'
 #' @return The function returns an object of class \code{fmsm} as described in \code{fmsmObject}.
 #'
@@ -91,7 +93,7 @@
 #' # ****
 #'
 #' fmsm.out <- fmsm(formula = formula, data = Data,
-#'                  id = PTNUM, state = state, death = TRUE,
+#'                  id = 'PTNUM', state = 'state', death = TRUE,
 #'                  fit = TRUE, parallel = TRUE, no_cores = 2,
 #'                  pmethod = 'analytic')
 #'
@@ -161,7 +163,8 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
                 constraint = NULL, sp.method = 'perf', iterlimsp = 50,
                 Q.diagnostics = TRUE, fit = TRUE, iterlim = 100,
                 tolsp = 1e-7, tolsp.EFS = 0.1, parallel = FALSE, no_cores = 2,
-                cens.state = NULL, living.exact = NULL, verbose = FALSE){
+                cens.state = NULL, living.exact = NULL, verbose = FALSE,
+                justComp = NULL, approxHess = FALSE){
 
 
   if(parallel == TRUE & Sys.info()['sysname'] != 'Windows') stop('Parallel computing is currently only supported for Windows users. \nPlease contact the authors for further details or change parallel to FALSE.')
@@ -200,7 +203,8 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
   rm(k)
   rm(l)
 
-  if(!(sum(whereQ != 0) == 3 & whereQ[1,2] != 0 & whereQ[1,3] != 0 & whereQ[2,3] != 0)){
+  # warning 1: analytic only available for IDMs for now
+  if(!(sum(whereQ != 0) == 3 & whereQ[1,2] != 0 & whereQ[1,3] != 0 & whereQ[2,3] != 0) & pmethod == 'analytic'){
     warning('pmethod cannot be \'analytic\', only IDM process is supported for now.\n pmethod has been changed to \'eigendecomp\'.')
     pmethod = 'eigendecomp'
   }
@@ -209,22 +213,32 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
   # cl <- match.call() # not sure if this is needed??
   full.mf <- match.call(expand.dots = FALSE)
 
-  if(is.null(living.exact)){
-    ind = match(c('data', 'id', 'state'), names(full.mf), nomatch = 0)
-  }  else {
-    ind = match(c('data', 'id', 'state', 'living.exact'), names(full.mf), nomatch = 0)
-  }
+  # # old code
+  # if(is.null(living.exact)){
+  #   ind = match(c('data', 'id', 'state'), names(full.mf), nomatch = 0)
+  # }  else {
+  #   ind = match(c('data', 'id', 'state', 'living.exact'), names(full.mf), nomatch = 0)
+  # }
+  #
+  # mf = full.mf[c(1, ind)] # mf drops all other arguments (only for the purpose of obtaining dataset)
 
-  mf = full.mf[c(1, ind)] # mf drops all other arguments (only for the purpose of obtaining dataset)
+  # new code ****
+  ind.df = match(c('data'), names(full.mf), nomatch = 0)
+  # ind.id = match(c('id'), names(full.mf), nomatch = 0)
+  # ind.st = match(c('state'), names(full.mf), nomatch = 0)
+  #
+  # if(!is.null(living.exact)) ind.LE = match(c('living.exact'), names(full.mf), nomatch = 0)
 
-  # ***********
+  mf = full.mf[c(1,ind.df)] # mf drops all other arguments (only for the purpose of obtaining dataset)
+  # ****
+
+
   short.formula = formula
   i = 1
   while(i <= length(short.formula)) {if(short.formula[[i]] == 0) {short.formula[[i]] = NULL} else{i = i + 1} }
   rm(i)
 
   l.short.formula = length(short.formula)
-  # ***********
 
 
 
@@ -243,6 +257,12 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
 
   og.data = data
   data = eval(mf, parent.frame())
+
+  # new code ****
+  data$'(id)' = og.data[,id] #[,full.mf[ind.id][[1]]]
+  data$'(state)' = og.data[,state] #[,full.mf[ind.st][[1]]]
+  if(!is.null(living.exact)) data$'(livingexact)' = og.data[, living.exact] #full.mf[ind.LE][[1]]]
+  # ****
 
   # ********************************
   # Now it's time to transform the data in the form we want it to be for LikGradHess
@@ -526,20 +546,36 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
   # ***********************************************************************************************************
 
 
+  # warning 2 - the formula inputted is not coherent with the data
+  # tmp.time = formula[[1]][[2]]  # this is just to get the time variable name (not as a string)
+  # tmp.state = full.mf[match('state', names(full.mf), nomatch = 0)][[1]]
+  # tmp.id = full.mf[match('id', names(full.mf), nomatch = 0)][[1]]
+
+  idx.lab = which(t(whereQ) != 0, arr.ind = T)
+
+  chck.counts = statetable.fmsm(state = state, subject = id, data = og.data)
+  if(nrow(chck.counts) < ncol(chck.counts)) chck.counts = rbind(chck.counts, rep(0, ncol(chck.counts)))
+  chck.countsVec = t(chck.counts)[t(whereQ) != 0]
+
+  if(any(chck.countsVec == 0)){
+    wrong.trans = which(chck.countsVec == 0)
+    for(wr.tr in wrong.trans){
+      if(any(chck.counts[1:idx.lab[wr.tr, 2], idx.lab[wr.tr, 1]] != 0) & is.null(params.0)) stop('An equation for transition ', idx.lab[wr.tr, 2], '->', idx.lab[wr.tr, 1],
+                                                                              ' was specified, this direct transition \nis never observed in the data but a path is possible. Please input starting parameters manually through params.0 argument.')
+      if(all(chck.counts[1:idx.lab[wr.tr, 2], idx.lab[wr.tr, 1]] == 0)) stop('An equation for transition ', idx.lab[wr.tr, 2], '->', idx.lab[wr.tr, 1],
+                                                                             ' was specified, but this path \nis never observed in the data. Please replace with a 0 in the formula.')
+    }
+  }
 
   # Retrieve starting values for parameters
   if(is.null(params.0)){
-
-    tmp.time = formula[[1]][[2]]  # this is just to get the time variable name (not as a string)
-    tmp.state = full.mf[match('state', names(full.mf), nomatch = 0)][[1]]
-    tmp.id = full.mf[match('id', names(full.mf), nomatch = 0)][[1]]
-    initQ = eval(substitute(msm::crudeinits.msm(formula = tmp.state ~ tmp.time, subject = tmp.id, qmatrix = whereQ, data = og.data),
-                            list(tmp.state = tmp.state, tmp.time = tmp.time, tmp.id = tmp.id)))
+    # initQ = eval(substitute(msm::crudeinits.msm(formula = tmp.state ~ tmp.time, subject = tmp.id, qmatrix = whereQ, data = og.data),
+    #                         list(tmp.state = tmp.state, tmp.time = tmp.time, tmp.id = tmp.id)))
+    initQ = crudeinits.fmsm(state = state, time = tte, subject = id, qmatrix = whereQ, data = og.data)
     initQ = log(initQ[whereQ != 0])
 
     params.0 = c()
     for(i.p0 in 1:length(short.formula)) params.0 = c(params.0, initQ[i.p0], rep(0, ncol(eval(parse(text = paste('X', i.p0, sep = ''))))-1))
-
   }
 
   # Retrieve starting values for smoothing parameters
@@ -659,6 +695,19 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
 
 
   msm.fit.object = msm.post.object = logLik = t.edf = NULL
+  singleComp = NULL
+
+
+  if(!is.null(justComp)){ # computation just of a single lik,grad,hess (at starting parameter)
+
+    if(fit) stop('justComp can only be used when fit = FALSE, i.e. the model fitting need not be carried out and \nonly one instance of the likelihood (gradient and/or hessian) needs to be computed at the \nparameters provided in params.0.')
+
+    singleComp = msmJustOne(params.0 = params.0, sp = sp.0, pmethod = pmethod, suStf = suStf, death = death,
+                            Q.diagnostics = Q.diagnostics, parallel = parallel, no_cores = no_cores, justComp = justComp)
+
+  }
+
+
 
   if(fit){
 
@@ -669,7 +718,7 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
                              suStf = suStf, death = death,
                              Q.diagnostics = Q.diagnostics, iterlimsp = iterlimsp,
                              iterlim = iterlim,
-                             sp.method = sp.method,
+                             sp.method = sp.method, approxHess = approxHess,
                              verbose = verbose, tolsp = tolsp, tolsp.EFS = tolsp.EFS, parallel = parallel, no_cores = no_cores)
     # ********************** #
     # POST FITTING THINGS ####
@@ -690,7 +739,8 @@ fmsm = function(formula, data, id, state, death, pmethod = 'eigendecomp',
        formula = formula,
        short.formula = short.formula,
        n = n, N = N,
-       logLik = logLik, t.edf = t.edf
+       logLik = logLik, t.edf = t.edf,
+       singleComp = singleComp
   )
   class(L) <- c("fmsm")
   L

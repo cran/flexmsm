@@ -13,6 +13,7 @@
 \item{N}{Number of unique individuals.}
 \item{logLik}{The value of the log-likelihood at convergence.}
 \item{t.edf}{Total effective degrees of freedom.}
+\item{singleComp}{If present, log-likelihood, gradient and Hessian computed at the starting parameter (without fitting).}
 }
 \description{
 The \code{\link{fmsm}} function returns the fitted model object \code{fmsmObject}. This is of class "fmsm" and includes the components listed below. These are intended for confident users. To extract results

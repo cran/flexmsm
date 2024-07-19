@@ -1,4 +1,4 @@
-#' Flexible transition intensity based models for univariate multistate processes
+#' Flexible transition intensity based models for two dependant multistate processes
 #'
 #' @param x Fitted model object.
 #' @param digits Number of digits printed in the output.

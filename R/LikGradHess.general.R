@@ -54,7 +54,7 @@ LikGradHess.general = function(params, data = NULL, full.X = NULL, MM, pen.matr.
 
   parallel.LikGradHess = function(data.parallel) {
     LikGradHess.general(params, data = data.parallel[[1]], full.X = data.parallel[[2]], MM = MM, pen.matr.S.lambda = matrix(0, nrow = nrow(pen.matr.S.lambda), ncol = ncol(pen.matr.S.lambda)), # *****
-                        aggregated.provided = FALSE, do.gradient = TRUE, do.hessian = TRUE,
+                        aggregated.provided = FALSE, do.gradient = do.gradient, do.hessian = do.hessian,
                         pmethod = pmethod, death = death,
                         Qmatr.diagnostics.list = Qmatr.diagnostics.list,
                         parallel = FALSE)
@@ -66,9 +66,9 @@ LikGradHess.general = function(params, data = NULL, full.X = NULL, MM, pen.matr.
 
   parallel::clusterExport(cl, varlist = c('LikGradHess.general', 'Q.matr.setup.general', 'P.matr.comp', 'dP.matr.comp', 'd2P.matr.comp',
                                           'params', 'data', 'full.X', 'MM', 'pen.matr.S.lambda',
-                                'aggregated.provided', 'do.gradient', 'do.hessian',
-                                'pmethod', 'death',
-                                'Qmatr.diagnostics.list'), envir = environment())
+                                          'aggregated.provided', 'do.gradient', 'do.hessian',
+                                          'pmethod', 'death',
+                                          'Qmatr.diagnostics.list'), envir = environment())
   parallel.LikGradHess <- parallel::parLapply(cl, data.list, parallel.LikGradHess)
   parallel::stopCluster(cl)
 
@@ -108,6 +108,7 @@ LikGradHess.general = function(params, data = NULL, full.X = NULL, MM, pen.matr.
     # Set first id, Q and dQ (then only fish out new Q matrix and new dQ matrix when this changes) --- only id
     id.t = data$"(id)"[1]
     # *******************************************************************************************************
+
 
     for(i in 1:nrow(data)){ # perhaps change to while(i < nagg) where nagg is the number of rows in the aggregated dataset as done in Jackson lik.c code (on github)
 
@@ -198,7 +199,6 @@ LikGradHess.general = function(params, data = NULL, full.X = NULL, MM, pen.matr.
         d2Pmatr.i = d2Pmatr.i.SS
 
       }
-
 
 
       # do.gradient = TRUE # might be useful for debugging purposes
@@ -475,16 +475,13 @@ LikGradHess.general = function(params, data = NULL, full.X = NULL, MM, pen.matr.
   # --------------------------------------------------------------------------------------------------------------------------------
 
 
-  if(verbose){
-    cat("One likelihood, gradient and Hessian call fully completed!", Sys.time())
-    cat('lik.pen =', lik.pen, "// max abs grad =", round(max(abs(G.pen)), 5), '// min eigen =', round(min(eigen(H.pen)$values, 5)))
-  }
+  if(verbose) print(paste(Sys.time(), '// lik.pen =', lik.pen, "// max abs grad =", round(max(abs(G.pen)), 5), '// min eigen =', round(min(eigen(H.pen)$values), 5) ))
 
 
   list(value = lik.pen, gradient = G.pen, hessian = H.pen, # penalized log-lik, gradient and Hessian
        S.h = S.h, S.h1 = S.h1, S.h2 = S.h2,                # penalty matrices
        l = -l.par,                                         # unpenalized negative log-likelihood
-       Qmatr.diagnostics.list = Qmatr.diagnostics.list   # containing maximum abs Q values, for diagnostics
+       Qmatr.diagnostics.list = Qmatr.diagnostics.list     # containing maximum abs Q values, for diagnostics
   )
 
 }

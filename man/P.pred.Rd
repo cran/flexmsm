@@ -7,7 +7,7 @@
 P.pred(object, newdata, get.CI = TRUE,
        n.sim.CI = 1000, prob.lev = 0.05,
        plot.P = FALSE, which.plots = NULL,
-       rug = FALSE, ...)
+       rug = FALSE, params.0 = NULL, ...)
 }
 \arguments{
 \item{object}{Fitted model object.}
@@ -25,6 +25,8 @@ P.pred(object, newdata, get.CI = TRUE,
 \item{which.plots}{Number between 1 and the maximum number of non-null transition probabilities. This can be used if only some plots are to be plotted.}
 
 \item{rug}{Whether to include a rugplot of the observed transition times.}
+
+\item{params.0}{Parameter value at which the transition probability matrix needs to be computed. By default this is \code{NULL} and the MLE found in the fitted model object \code{object} is used. If both a fitted model and a manually inputted parameters vector are provided, the former will be ignored and the P matrix will be computed at the \code{params.0} value.}
 
 \item{...}{Other graphical arguments.}
 }
